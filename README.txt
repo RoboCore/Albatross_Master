@@ -1,9 +1,9 @@
-**************
-*** README ***
-**************
+******************************************************
+*********************** README ***********************
+******************************************************
 
  		RoboCore XBee Master Shield
-			v 1.0.0
+			v 1.0 - 24/05/13
 
 
   Program to use with the XBee Master Shield from RoboCore ( http://www.RoboCore.net )
@@ -44,6 +44,7 @@
 
 
 ************************************** Pins **************************************
+(defined in <VersionPins.h>)
 
 # fixed
 
@@ -110,6 +111,13 @@ changes in the libraries (only to compile the module's code):
 
 
 ************************************** Observations **************************************
+
+# During setup, the RGB LED turns White, then Green when the setup is complete.
+	If the SD card was not initialized during this configuration, the LED
+	will blink Yellow before turning to Green.
+
+# If the SD card was not initialized and a function that uses it was called
+	(ex Record), the RGB LED will blink Yellow to inform the user.
 
 # To use the serial commands, the command must be sent with the End Of Line
 	character (ex: "auto_config#").

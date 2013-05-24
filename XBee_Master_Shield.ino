@@ -3,7 +3,7 @@
 
 /*
 	RoboCore XBee Master Shield
-		(v1.0.0 - 17/05/2013)
+		(v1.0 - 24/05/2013)
 
   Program to use with the XBee Master Shield from RoboCore ( http://www.RoboCore.net )
     (for Arduino 1.0.1 and later)
@@ -57,6 +57,8 @@
 
 */
 
+#include "VersionPins.h"
+
 #include <SPI.h>
 #include <SD.h>
 #include <Ethernet.h>
@@ -68,9 +70,6 @@
 #include <String_Functions.h> //v1.3
 #include <Hex_Strings.h> //v1.2
 #include <XBee_API.h> //v1.2
-
-
-const byte VERSION[] = {1, 0, 0}; // the version of the software
 
 
 // TIMER 1 MACROS **********************************************************************
@@ -111,11 +110,11 @@ const byte VERSION[] = {1, 0, 0}; // the version of the software
 
 // VARIABLES ***************************************************************************
 
-#define SS_HARDWARE 53 //10 on UNO
+#define SS_HARDWARE XMS_SS_HARDWARE //10 on UNO
 
 // ----------------------
 // ETHERNET
-const int SSpin_Ethernet = 10; //of Ethernet Shield
+const int SSpin_Ethernet = XMS_SS_ETHERNET; //of Ethernet Shield
 
 byte myMac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x9B, 0x36 };
 byte myIp[]  = { 192, 168, 0, 31 };
@@ -124,7 +123,7 @@ uint16_t clientPort = 1111;
 
 // ----------------------
 // SD
-const int SSpin_SD = 4; //of Ethernet Shield
+const int SSpin_SD = XMS_SS_SD; //of Ethernet Shield
 SDClass mySD; //cannot directly use 'SD' because of XBee's AT command **** MODIFY
 
 #define STR_SIZE_FOLDER 3 //size of the string stored in 'kfolder'
@@ -146,7 +145,7 @@ OSCClient client;
 // ----------------------
 // IR
 // Sender Pin if by default pin 46 on Mega 2560 (Timer 5)
-const int pinIRreceiver = 48;
+const int pinIRreceiver = XMS_IR_RECEIVER;
 
 IRrecv IRreceiver(pinIRreceiver);
 IRsend IRsender;
@@ -158,9 +157,9 @@ unsigned int IRbuffer[RAWBUF]; //values of the IR command (already converted)
 
 // ----------------------
 // Other
-XBeeMaster XBee;
-const int pinLEDRed = 43;
-const int pinLEDBlue = 45;
+XBeeMaster XBee(XMS_XBEE_SERIAL);
+const int pinLEDRed = XMS_LED_RED;
+const int pinLEDBlue = XMS_LED_BLUE;
 //const int pinLEDGreen = 0; // for SMD version
 //const int pinERROR = 0; // for SMD version - preferably red
 
@@ -174,7 +173,7 @@ int LEDtime; //desired time (in ms)
 int LEDms; //elapsed time (DO NOT CHANGE)
 
 #define pinRelayToggle pinLEDRed //same for Toggle and Pulse
-#define pinRelayConfigure pinLEDRed
+#define pinConfigure pinLEDRed
 #define pinIRRecord pinLEDBlue
 #define pinIRSend pinLEDBlue
 #define pinTest pinLEDRed
@@ -197,9 +196,11 @@ const char Version[] = "version"; //********************************************
 void setup(){
   // during setup the RGB LED is White (Green + Blue + Red) and turns to Green
   //   when complete.
-  // IF the SD card was not initialized, the LED will become Yellow (Green + Red)
+  // IF the SD card was not initialized, the LED will blink Yellow (Green + Red)
   //    for about 3 seconds, time to let the user know an error has ocurred.
-
+  
+  // --- configure Timer 1 ---
+  TIMER1_CONFIGURE(); //configure Timer1
   
   // --- set folder ---
   for(int i=0 ; i < STR_SIZE_FOLDER ; i++)
@@ -233,8 +234,11 @@ void setup(){
     Serial.println("ERROR: SD not initialized");
     SDinitialized = false;
 //    digitalWrite(pinERROR, HIGH); // for SMD version *** MODIFY
-    digitalWrite(pinLEDBlue, LOW); // turns to red
+    //blink Blue LED
+    BlinkEnable(pinLEDBlue, 100);
     delay(3000); // wait a bit
+    BlinkStop();
+    digitalWrite(pinLEDBlue, HIGH); //return to setup LEDs
   } else {
     Serial.println("SD initialized");
     SDinitialized = true;
@@ -250,7 +254,7 @@ void setup(){
   
   // --- configure Ethernet ---
   EnableEthernet();
-  Ethernet.begin(myMac ,myIp); 
+  Ethernet.begin(myMac, myIp); 
   server.begin(serverPort);
   
   //set callback function & oscaddress
@@ -264,9 +268,6 @@ void setup(){
   // --- configure IR ---
   SaveIR = false;
   IRlength = 0;
-  
-  // --- configure Timer 1 ---
-  TIMER1_CONFIGURE(); //configure Timer1
 
 //  digitalWrite(pinON, HIGH); // *** MODIFY
   Serial.println("--- RoboCore XBee Master v1.0 ---"); //MODIFY
@@ -367,11 +368,9 @@ void loop(){
     else if((length == StrLength((char*)Version)) && (StrCompare(temp, (char*)Version, (byte)CASE_INSENSITIVE) == StrLength((char*)Version))){ //must be exact match
       Serial.println();
       Serial.print("# Version: ");
-      Serial.print(VERSION[0]);
+      Serial.print(XMS_VERSION_MAIN);
       Serial.print(".");
-      Serial.print(VERSION[1]);
-      Serial.print(".");
-      Serial.println(VERSION[2]);
+      Serial.println(XMS_VERSION_SUB);
     }
     //invalid command
     else{
@@ -394,7 +393,7 @@ void Configure(OSCMessage *_mes){
   Serial.println(); //for debugging
   AvailableMemory(&Serial, true); //for debugging
   
-  BlinkEnable(pinRelayConfigure, 500); //blink LED
+  BlinkEnable(pinConfigure, 500); //blink LED
   Serial.println("CONFIGURE");
   int res = -1;
   
@@ -441,7 +440,7 @@ void Configure(OSCMessage *_mes){
   client.send(&resMes);
   
   BlinkStop(); //stop blink
-  digitalWrite(pinRelayConfigure, LOW);
+  digitalWrite(pinConfigure, LOW);
 }
 
 
@@ -766,6 +765,10 @@ void IRRecord(OSCMessage *_mes){
   //check if SD was initialized
   if(!SDinitialized){
     Serial.println("No SD");
+    //blink Yellow
+    BlinkEnable(pinLEDRed, 100);
+    delay(2000); // wait a bit
+    BlinkStop();
     return;
   }
   
@@ -860,6 +863,10 @@ void IRSend(OSCMessage *_mes){
   //check if SD was initialized
   if(!SDinitialized){
     Serial.println("No SD");
+    //blink Yellow
+    BlinkEnable(pinLEDRed, 100);
+    delay(2000); // wait a bit
+    BlinkStop();
     return;
   }
   
@@ -991,6 +998,11 @@ void TEST(OSCMessage *_mes){
       printDirectory(root, 1);
     root.close();
     Serial.println("\tdone!");
+  } else {
+    //blink Blue LED
+    BlinkEnable(pinLEDBlue, 100);
+    delay(2000); // wait a bit
+    BlinkStop();
   }
   
   //send response
