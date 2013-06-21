@@ -80,8 +80,8 @@ changes in the libraries (only to compile the module's code):
 		- <Pattern.h>		#define kMaxPatternMatch from 50 to 20
 
 	> IRremote
-		- <IRremote.h>		comment in IRrecv::decode() from first
-						#ifdef DEBUG to line before
+		- <IRremote.cpp>	in IRrecv::decode(), comment from first
+						#ifdef DEBUG to the line before
 						if(decodeHash(results))
 		- <IRremote.h>		#define RAWBUF from 100 to 230
 		- <IRremoteInt.h>	#define _GAP from 5000 to 6000
