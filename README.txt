@@ -2,25 +2,38 @@
 *********************** README ***********************
 ******************************************************
 
- 		RoboCore XBee Master Shield
-			v 1.0 - 24/05/13
+	RoboCore Albatross Master
+		(v1.0 - 30/07/2013)
 
-
-  Program to use with the XBee Master Shield from RoboCore ( http://www.RoboCore.net )
+  Program to use with the Albatross Master Shield from RoboCore
     (for Arduino 1.0.1 and later)
 
-  Released under the Beerware licence
-  Written by François
+  Copyright 2013 RoboCore (François) ( http://www.RoboCore.net )
   
+  ------------------------------------------------------------------------------
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  ------------------------------------------------------------------------------
   
-  This program is supported by (master version + slaves versions):
-    - XBee Master Shield v1.0
-          + XBee Slave v1.0
+  This program is supports (master version + slaves versions):
+    - Albatross Master Shield v1.0
+          + Albatross Slave Relay v1.0
   
-  The program is used to execute commands via OSC messages. The included commands are:
-    - toggle on/off an IO port in a XBee Slave;
-    - pulse an IO port in a XBee Slave;
-    - configure a XBee as Master or Slave;
+  The program is used to execute commands via OSC messages sent in the local network.
+  The included commands are:
+    - toggle on/off an IO port in a Albatross Slave Relay;
+    - pulse an IO port in a Albatross Slave Relay;
+    - configure a Albatross as Master or Slave XBee;
     - record an IR command;
     - send an IR command;
     - perform a test;
@@ -28,10 +41,11 @@
     program to run. One can also use the Serial to execute special commands:
     - auto_config >> automatically configure the XBee as Master by scanning through
                       the possible baudrate values;
-    - config_slave >> configure the XBee as slave (presumed the correct baudrate was
+    - config_slave:<slave_type>
+                  >> configure the XBee as slave (presumed the correct baudrate was
                       already set);
     - restore >> restore the XBee's parameter to their factory settings;
-    - version >> return the version of the current program. ************************************************* TEST
+    - version >> return the version of the current program.
   
   
   MUST CONFIGURE variables (before uploading to the Arduino), according to the user's network:

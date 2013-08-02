@@ -1,11 +1,11 @@
-#ifndef RC_AMS_VERSION_PINS_H
-#define RC_AMS_VERSION_PINS_H
+#ifndef RC_AM_MODULE_HASH_H
+#define RC_AM_MODULE_HASH_H
 
 /*
-	RoboCore Albatross Master Shield Pins
-                     (v1.0 - 24/05/2013)
+	RoboCore Albatross Master Module Hash
+                     (v1.0 - 01/08/2013)
 
-  Pins of the Albatross Master Shield from RoboCore ( http://www.RoboCore.net )
+  Hash function for the Master and Slave of the Albatross ( http://www.RoboCore.net )
 
   Copyright 2013 RoboCore (François) ( http://www.RoboCore.net )
   
@@ -26,31 +26,29 @@
   along with Albatross Master.  If not, see <http://www.gnu.org/licenses/>.
   ------------------------------------------------------------------------------
   
-  Definition of the custom pins for each version of the Master Shield
-  
-  IMPORTANT: One must know what to do before changing the values for the pins
-  
 */
 
 
-#define AMS_VERSION_MAIN 1 //current version being used
-#define AMS_VERSION_SUB 0 //current version being used
-
-
-#if (AMS_VERSION_MAIN == 1) && (AMS_VERSION_SUB == 0) // for version 1.0
-  #define AMS_SS_HARDWARE  53 // 10 on UNO
+// Get the hash for the module
+unsigned long ModuleHash(char *module){
+  int length = StrLength(module);
   
-  #define AMS_SS_ETHERNET  10 // Ethernet Shield
-  #define AMS_SS_SD         4 // Ethernet Shield
+  //check for valid name
+  if(length == 0)
+    return 0;
+  
+  unsigned long hash = 0;
+  word square;
+  for(int i=0 ; i < length ; i++){
+    square = (i+1) * (i+1);
+    hash += ((byte)module[i] - 32) * square;
+  }
+  
+  return (hash & 0xFFFFFFFF);
+}
 
-  #define AMS_XBEE_SERIAL  &Serial1
-  #define AMS_IR_RECEIVER  48
-  #define AMS_LED_RED      43
-  #define AMS_LED_BLUE     45
-#endif
 
-
-#endif //RC_AMS_VERSION_PINS_H
+#endif // RC_AM_MODULE_HASH_H
 
 
 

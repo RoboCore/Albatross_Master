@@ -1,11 +1,12 @@
-#ifndef RC_AMS_VERSION_PINS_H
-#define RC_AMS_VERSION_PINS_H
+#ifndef RC_AS_DATA_PROCESSING_H
+#define RC_AS_DATA_PROCESSING_H
 
 /*
-	RoboCore Albatross Master Shield Pins
-                     (v1.0 - 24/05/2013)
+	RoboCore Albatross Data Processing
+                     (v1.0 - 30/07/2013)
 
-  Pins of the Albatross Master Shield from RoboCore ( http://www.RoboCore.net )
+  The function to process incoming data from Slave
+  modules of the Albatross ( http://www.RoboCore.net )
 
   Copyright 2013 RoboCore (François) ( http://www.RoboCore.net )
   
@@ -26,31 +27,31 @@
   along with Albatross Master.  If not, see <http://www.gnu.org/licenses/>.
   ------------------------------------------------------------------------------
   
-  Definition of the custom pins for each version of the Master Shield
-  
-  IMPORTANT: One must know what to do before changing the values for the pins
-  
 */
 
-
-#define AMS_VERSION_MAIN 1 //current version being used
-#define AMS_VERSION_SUB 0 //current version being used
+#define AS_DP_RECEIVED_TEST //uncomment to see the data received
 
 
-#if (AMS_VERSION_MAIN == 1) && (AMS_VERSION_SUB == 0) // for version 1.0
-  #define AMS_SS_HARDWARE  53 // 10 on UNO
-  
-  #define AMS_SS_ETHERNET  10 // Ethernet Shield
-  #define AMS_SS_SD         4 // Ethernet Shield
+// Process incoming data (user defined)
+void DataProcessing(char *address_64bit, ByteArray *data){
+  //check if valid
+  if((address_64bit == NULL) | (data == NULL) || (data->length == 0))
+    return;
 
-  #define AMS_XBEE_SERIAL  &Serial1
-  #define AMS_IR_RECEIVER  48
-  #define AMS_LED_RED      43
-  #define AMS_LED_BLUE     45
+#ifdef AS_DP_RECEIVED_TEST
+  Serial.println("\n>> Received Test");
+  Serial.println(address_64bit); //TESTE
+  DisplayByteArray(&Serial, data, true); //TESTE
 #endif
+  
+  //--- change from here ---
+  
+  
+  //--------- end ----------
+}
 
 
-#endif //RC_AMS_VERSION_PINS_H
+#endif // RC_AS_DATA_PROCESSING_H
 
 
 

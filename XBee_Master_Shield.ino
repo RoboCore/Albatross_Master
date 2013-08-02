@@ -1,26 +1,64 @@
+/*
+  ***************************************************************************************************************************************************************
+  ROBOCORE ONLY *************************************************************************************************************************************************
 
-//--------------------------------------------------------- MODIFY
+  Versão RELEASE:
+  (procurar por RELEASE para identificar o que remover/alterar)
+    # alterar 
+       - myMac[] = { 0xA1, 0xBA, 0x78, 0x05, 0x50, 0x00 };
+       - myIp[]  = { 192, 168, 1, 50 };
+       - serverPort  = 1313;
+       - clientPort = 2121;
+    
+       (XBee_API)
+       #define NETWORK_ID 0xA1BA  //0 to 0xFFFF
+       #define NETWORK_CHANNEL 0x13 //XBee: 0x0B to 0x1A || XBee PRO: 0x0C to 0x17
+   
+    # remover (01/08/2013)
+      - código de configuração via OSC
+      - código para o RFID
+  
+  ***************************************************************************************************************************************************************
+  ***************************************************************************************************************************************************************
+*/
+
+
 
 /*
-	RoboCore XBee Master Shield
-		(v1.0 - 24/05/2013)
+	RoboCore Albatross Master
+		(v1.0 - 30/07/2013)
 
-  Program to use with the XBee Master Shield from RoboCore ( http://www.RoboCore.net )
+  Program to use with the Albatross Master Shield from RoboCore
     (for Arduino 1.0.1 and later)
 
-  Released under the Beerware licence
-  Written by François
+  Copyright 2013 RoboCore (François) ( http://www.RoboCore.net )
   
+  ------------------------------------------------------------------------------
+  This file is part of Albatross Master.
+
+  Albatross Master is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Lesser General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  Albatross Master is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Lesser General Public License for more details.
+
+  You should have received a copy of the GNU Lesser General Public License
+  along with Albatross Master.  If not, see <http://www.gnu.org/licenses/>.
+  ------------------------------------------------------------------------------
   
-  This program is supported by (master version + slaves versions):
-    - XBee Master Shield v1.0
-          + XBee Slave v1.0
+  This program is supports (master version + slaves versions):
+    - Albatross Master Shield v1.0
+          + Albatross Slave Relay v1.0
   
   The program is used to execute commands via OSC messages sent in the local network.
   The included commands are:
-    - toggle on/off an IO port in a XBee Slave;
-    - pulse an IO port in a XBee Slave;
-    - configure a XBee as Master or Slave;
+    - toggle on/off an IO port in a Albatross Slave Relay;
+    - pulse an IO port in a Albatross Slave Relay;
+    - configure a Albatross as Master or Slave XBee;
     - record an IR command;
     - send an IR command;
     - perform a test;
@@ -28,10 +66,11 @@
     program to run. One can also use the Serial to execute special commands:
     - auto_config >> automatically configure the XBee as Master by scanning through
                       the possible baudrate values;
-    - config_slave >> configure the XBee as slave (presumed the correct baudrate was
+    - config_slave:<slave_type>
+                  >> configure the XBee as slave (presumed the correct baudrate was
                       already set);
     - restore >> restore the XBee's parameter to their factory settings;
-    - version >> return the version of the current program. ************************************************* TEST
+    - version >> return the version of the current program.
   
   
   MUST CONFIGURE variables (before uploading to the Arduino), according to the user's network:
@@ -42,22 +81,6 @@
   
 */
 
-/*
-
-                                                              ADICIONAR ReadFromSerial() de <String_Functions.h> ************************************************* OK
-                                                              
-                                                              ************* verificar compatibilidade de versão de mestres e escravos
-                                                                        no momento RELAY, PULSE e RECORD são universais, pois estão diretamente associados com o pino do XBee escravo (deve ser configurado pelo usuário) e só há um modo de gravação de IR
-                                                                        CONFIGURE atualmente só funciona para a Sërie 1 do XBee (no futuro talvez seja alterado para suporte às duas séries)
-                                                                        SEND atualmente está no Master, portanto não há problema de versão
-                                                               **** criar .h com pinos + infos importantes das versõe do Master (e Slave?)
-                                                              
-                                                              create RELEASE version without MODIFY + TESTE + outros
-                                                              mudar MODIFY + TESTE + outros ***********************************
-
-*/
-
-#include "VersionPins.h"
 
 #include <SPI.h>
 #include <SD.h>
@@ -71,6 +94,19 @@
 #include <Hex_Strings.h> //v1.2
 #include <XBee_API.h> //v1.2
 
+#include "SDFunctions.h"
+#include "VersionPins.h"
+#include "ModuleHash.h"
+#include "ConfigureSlavePins.h"
+#include "AccessControl.h"
+#include "DataProcessing.h"
+
+// DELAY MACRO *************************************************************************
+
+#define RCdelay(x) ({ \
+  unsigned long st = millis(); \
+  while(millis() < (st + x)) { /* do nothing */ } \
+})
 
 // TIMER 1 MACROS **********************************************************************
 
@@ -110,11 +146,11 @@
 
 // VARIABLES ***************************************************************************
 
-#define SS_HARDWARE XMS_SS_HARDWARE //10 on UNO
+#define SS_HARDWARE AMS_SS_HARDWARE //10 on UNO
 
 // ----------------------
 // ETHERNET
-const int SSpin_Ethernet = XMS_SS_ETHERNET; //of Ethernet Shield
+const int SSpin_Ethernet = AMS_SS_ETHERNET; //of Ethernet Shield
 
 byte myMac[] = { 0x90, 0xA2, 0xDA, 0x00, 0x9B, 0x36 };
 byte myIp[]  = { 192, 168, 0, 31 };
@@ -123,19 +159,15 @@ uint16_t clientPort = 1111;
 
 // ----------------------
 // SD
-const int SSpin_SD = XMS_SS_SD; //of Ethernet Shield
+const int SSpin_SD = AMS_SS_SD; //of Ethernet Shield
 SDClass mySD; //cannot directly use 'SD' because of XBee's AT command **** MODIFY
 
-#define STR_SIZE_FOLDER 3 //size of the string stored in 'kfolder'
-#define STR_SIZE_EXTENSION 4 //size of the string stored in 'kextension'
-const char kfolder[] = "IR/"; //NOT to forget to add the '/' at the end
-const char kextension[] = ".rbc"; //NOT to forget to add the '.' at the beginning
+FolderData IRfolder = { "IR/" , 3 , ".rbc" };
+FolderData RFIDfolder = { "Access/" , 7 , ".csv" };
 
-#define FILE_NAME_SIZE 30
-char file_name[FILE_NAME_SIZE];
+extern char file_name[];
 
 boolean SDinitialized; //false when couldn't initialize the SD
-
 
 // ----------------------
 // OSC
@@ -145,7 +177,7 @@ OSCClient client;
 // ----------------------
 // IR
 // Sender Pin if by default pin 46 on Mega 2560 (Timer 5)
-const int pinIRreceiver = XMS_IR_RECEIVER;
+const int pinIRreceiver = AMS_IR_RECEIVER;
 
 IRrecv IRreceiver(pinIRreceiver);
 IRsend IRsender;
@@ -157,9 +189,9 @@ unsigned int IRbuffer[RAWBUF]; //values of the IR command (already converted)
 
 // ----------------------
 // Other
-XBeeMaster XBee(XMS_XBEE_SERIAL);
-const int pinLEDRed = XMS_LED_RED;
-const int pinLEDBlue = XMS_LED_BLUE;
+XBeeMaster XBee(AMS_XBEE_SERIAL);
+const int pinLEDRed = AMS_LED_RED;
+const int pinLEDBlue = AMS_LED_BLUE;
 //const int pinLEDGreen = 0; // for SMD version
 //const int pinERROR = 0; // for SMD version - preferably red
 
@@ -184,7 +216,9 @@ char buffer[BUFFER_SIZE]; //buffer to read from Serial
 const char AutoConfigure[] = "auto_config";
 const char ConfigureSlave[] = "config_slave";
 const char Restore[] = "restore";
-const char Version[] = "version"; //************************************************************************************ TESTE
+const char Version[] = "version";
+
+extern struct SACD AccessControlData;
 
 
 //**************************************************************************************
@@ -201,10 +235,6 @@ void setup(){
   
   // --- configure Timer 1 ---
   TIMER1_CONFIGURE(); //configure Timer1
-  
-  // --- set folder ---
-  for(int i=0 ; i < STR_SIZE_FOLDER ; i++)
-    file_name[i] = kfolder[i];
   
   // --- configure other ---
   pinMode(pinLEDRed, OUTPUT);
@@ -236,7 +266,7 @@ void setup(){
 //    digitalWrite(pinERROR, HIGH); // for SMD version *** MODIFY
     //blink Blue LED
     BlinkEnable(pinLEDBlue, 100);
-    delay(3000); // wait a bit
+    RCdelay(3000); // wait a bit
     BlinkStop();
     digitalWrite(pinLEDBlue, HIGH); //return to setup LEDs
   } else {
@@ -244,13 +274,25 @@ void setup(){
     SDinitialized = true;
   }
 
-  //create folder if doesn't exist
+  //create folders if doesn't exist
   if(SDinitialized){
-    if(!mySD.exists((char*)kfolder)){
-      mySD.mkdir((char*)kfolder);
+    //IR folder
+    if(!mySD.exists(IRfolder.folder)){
+      mySD.mkdir(IRfolder.folder);
       Serial.println("IR/ created");
     }
+    
+    //Access folder
+    if(!mySD.exists(RFIDfolder.folder)){
+      mySD.mkdir(RFIDfolder.folder);
+      Serial.println("Access/ created");
+    }
   }
+  
+  //initialize the access control data
+  AccessControlData.state = AS_SACD_STATE_EXECUTE;
+  AccessControlData.relay = 0;
+  InitializeByteArray(&AccessControlData.serial_number);
   
   // --- configure Ethernet ---
   EnableEthernet();
@@ -259,18 +301,20 @@ void setup(){
   
   //set callback function & oscaddress
   server.addCallback("/RoboCore/test", &TEST); //RoboCore callback to verify calls - for testing
-  server.addCallback("/RoboCore/configure/^", &Configure); //configure master|slave
+  server.addCallback("/RoboCore/configure/^", &Configure); //configure master|slave >> currently not very useful
   server.addCallback("/RoboCore/relay/^", &RelayToggle); //set/unset the relay
   server.addCallback("/RoboCore/pulse/^", &RelayPulse); //send o pulse to the relay
   server.addCallback("/RoboCore/IR/record", &IRRecord); // record the IR command
   server.addCallback("/RoboCore/IR/send/^", &IRSend); //send/save the IR command
+  server.addCallback("/RoboCore/rfid/add/^", &RFIDAdd); //add an rfid to the access list
+  server.addCallback("/RoboCore/rfid/remove/^", &RFIDRemove); //remove an rfid from the access list
   
   // --- configure IR ---
   SaveIR = false;
   IRlength = 0;
 
 //  digitalWrite(pinON, HIGH); // *** MODIFY
-  Serial.println("--- RoboCore XBee Master v1.0 ---"); //MODIFY
+  Serial.println("--- RoboCore Albatross Master v1.0 ---"); //MODIFY
   
   // --- reset LEDs ---
   digitalWrite(pinLEDRed, LOW);
@@ -282,8 +326,10 @@ void setup(){
 void loop(){
   //check for OSC message
   if(server.availableCheck(CALL_SPECIFIC_CALLBACK, 1) > 0){ //don't call general callback + flush
-    //do nothing, used only to receive messages
+    //do nothing, used only to receive OSC messages
   }
+  
+  //--------------------------------
   
   //check for serial message
   if(Serial.available()){
@@ -339,17 +385,40 @@ void loop(){
       }
     }
     //configure as slave
-    else if((length == StrLength((char*)ConfigureSlave)) && (StrCompare(temp, (char*)ConfigureSlave, (byte)CASE_INSENSITIVE) == StrLength((char*)ConfigureSlave))){ //must be exact match
-      Serial.println();
-      Serial.println("# Configure as Slave");
-      byte res = XBee.ConfigureAsSlave(XBee.GetXBeebaudrate()); //presumed baudrate already set
+    else if(StrParserQty(temp, ':') == 2){
+      //get the data sent
+      char* config = StrParser(temp, ':', 1);
+      char* slave = StrParser(temp, ':', 2);
       
-      //display result
-      if(res != 1){
-        Serial.println("ERROR on configuration");
+      if((StrLength(config) == StrLength((char*)ConfigureSlave)) && (StrCompare(config, (char*)ConfigureSlave, (byte)CASE_INSENSITIVE) == StrLength((char*)ConfigureSlave))){ //must be exact match
+        unsigned long slave_type = ModuleHash(slave); //get the code for the slave
+        Serial.print("\thash:"); //RELEASE
+        Serial.println(slave_type); //RELEASE
+        
+        //configure if the type exists
+        if(SlaveTypeExists(slave_type)){
+          Serial.println();
+          Serial.println("# Configure as Slave");
+          byte res = XBee.ConfigureAsSlave(XBee.GetXBeebaudrate()); //presumed baudrate already set
+          RCdelay(1000); //time for the XBee to "recover" from previous configuration
+          if(res == 1){
+            Serial.println();
+            res += ConfigureSlavePins(&XBee, slave_type); //configure the pins
+          }
+          
+          //display result
+          if(res != 2){
+            Serial.println("ERROR on configuration");
+          } else {
+            Serial.println("done!");
+          }
+        }
       } else {
-        Serial.println("done!");
+        Serial.println("Invalid command");
       }
+      
+      Mfree(config); //free the string allocated by StrParser()
+      Mfree(slave); //free the string allocated by StrParser()
     }
     //restore values
     else if((length == StrLength((char*)Restore)) && (StrCompare(temp, (char*)Restore, (byte)CASE_INSENSITIVE) == StrLength((char*)Restore))){ //must be exact match
@@ -368,9 +437,9 @@ void loop(){
     else if((length == StrLength((char*)Version)) && (StrCompare(temp, (char*)Version, (byte)CASE_INSENSITIVE) == StrLength((char*)Version))){ //must be exact match
       Serial.println();
       Serial.print("# Version: ");
-      Serial.print(XMS_VERSION_MAIN);
+      Serial.print(AMS_VERSION_MAIN);
       Serial.print(".");
-      Serial.println(XMS_VERSION_SUB);
+      Serial.println(AMS_VERSION_SUB);
     }
     //invalid command
     else{
@@ -378,6 +447,50 @@ void loop(){
     }
 
   } //end of Serial.available()
+  
+  //--------------------------------
+  
+  //check for XBee message
+  char* str = NULL;
+  int res = XBee.Listen(&str, false, 20, 100); //use 20 ms timeout
+  if(res == 1){
+    Serial.println(); //for debugging
+    AvailableMemory(&Serial, true); //for debugging
+  
+    //parse source 64-bit address + data **** NOT YET IMPLEMENTED ??? which frame identifier will be received?
+    char* temp = "##";
+    temp[0] = str[0];
+    temp[1] = str[1];
+    if(HexCharToByte(temp) == API_RX_64_BIT){
+      int length = StrLength(str);
+      
+      //parse address
+      char address[17];
+      address[16] = '\0';
+      for(int i=0 ; i < 16 ; i++){
+        address[i] = str[i+2]; // (+2) because of the frame identifer
+      }
+      
+      //parse data
+      int data_length = length - 21; // (-2) for frame identifier & (-16) for address & (-2) for RSSI & (-2) for options & (+1) for '\0'
+      char data[data_length];
+      data[data_length - 1] = '\0';
+      for(int i=0 ; i < data_length ; i++){
+        data[i] = str[i+22];
+      }
+      
+      //store data in a Byte Array
+      ByteArray bdata;
+      InitializeByteArray(&bdata);
+      HexStringToByteArray(data, &bdata);
+      
+      if(AccessControl(address, &bdata) == 0){ //call the access control function
+        DataProcessing(address, &bdata); //call the processing function
+      }
+      FreeByteArray(&bdata); //free the used memory
+    }
+  }
+  Mfree(str); //free the string allocated by Listen()
   
 }
 
@@ -417,6 +530,7 @@ void Configure(OSCMessage *_mes){
     } else if(StrCompare("slave", type) == 5){
       Serial.println("\tslave");
       res = XBee.ConfigureAsSlave(baudrate);
+      // NOT YET IMPLEMENTED, but should configure the slave by its type
     } else {
       Serial.println("\tother");
     }
@@ -444,7 +558,7 @@ void Configure(OSCMessage *_mes){
 }
 
 
-// TOGGLE RELAY ************************************************************************ "0013A20040791ABB"
+// TOGGLE RELAY ************************************************************************
 
 void RelayToggle(OSCMessage *_mes){
 //NOTE: could call MReset() at the end of the functions instead of calling Mfree() multiple times
@@ -493,6 +607,23 @@ void RelayToggle(OSCMessage *_mes){
           case 1:
             totoggle = D1;
             break;
+          
+          case 2:
+            totoggle = D2;
+            break;
+          
+          case 3:
+            totoggle = D3;
+            break;
+          
+          case 4:
+            totoggle = D4;
+            break;
+          
+          case 5:
+            totoggle = D5;
+            break;
+          
           default:
             totoggle = D0;
             break;
@@ -508,9 +639,9 @@ void RelayToggle(OSCMessage *_mes){
           //--- create message
           char* tosend = NULL;
           if(state > 0)
-            tosend = ByteToHexChar(5); //ON
+            tosend = ByteToHexChar(XBEE_PIN_DO_HIGH); //ON
           else
-            tosend = ByteToHexChar(4); //OFF
+            tosend = ByteToHexChar(XBEE_PIN_DO_LOW);  //OFF
           XBeeMessages::CreateRemoteATRequest(&barray, receiver, "0000", USE_64_BIT_ADDRESS, totoggle, tosend);
           Mfree(tosend); //free string
           //--- end of creation
@@ -521,6 +652,8 @@ void RelayToggle(OSCMessage *_mes){
           
           res = XBeeMessages::ResponseOK(API_REMOTE_AT_COMMAND_REQUEST, str);
           Mfree(str); //free the string allocated by Listen()
+          
+          res += SendATWR(&receiver); //send the WR command
         }
         Mfree(receiver); //free the string allocated by StrParser()
       }
@@ -534,6 +667,23 @@ void RelayToggle(OSCMessage *_mes){
       case 1:
         totoggle = D1;
         break;
+          
+      case 2:
+        totoggle = D2;
+        break;
+      
+      case 3:
+        totoggle = D3;
+        break;
+      
+      case 4:
+        totoggle = D4;
+        break;
+      
+      case 5:
+        totoggle = D5;
+        break;
+        
       default:
         totoggle = D0;
         break;
@@ -552,19 +702,21 @@ void RelayToggle(OSCMessage *_mes){
       //--- create message
       char* tosend = NULL;
       if(value > 0)
-        tosend = ByteToHexChar(5); //ON
+        tosend = ByteToHexChar(XBEE_PIN_DO_HIGH); //ON
       else
-        tosend = ByteToHexChar(4); //OFF
+        tosend = ByteToHexChar(XBEE_PIN_DO_LOW);  //OFF
       XBeeMessages::CreateRemoteATRequest(&barray, receiver, "0000", USE_64_BIT_ADDRESS, totoggle, tosend);
       Mfree(tosend); //free string
       //--- end of creation
       XBee.CreateFrame(&barray); //already free Byte Array
       XBee.Send();
       char* str = NULL;
-      XBee.Listen(&str, false);
-      
+      byte teste = XBee.Listen(&str, false);
+
       res = XBeeMessages::ResponseOK(API_REMOTE_AT_COMMAND_REQUEST, str);
       Mfree(str); //free the string allocated by Listen()
+
+      res += SendATWR(&receiver); //send the WR command
     }
     Mfree(receiver); //free the string allocated by StrParser()
   }
@@ -579,7 +731,7 @@ void RelayToggle(OSCMessage *_mes){
   digitalWrite(pinRelayToggle, LOW); //turn off
 }
 
-// PULSE RELAY ************************************************************************ "0013A20040791ABB"
+// PULSE RELAY ************************************************************************
 
 void RelayPulse(OSCMessage *_mes){
 //NOTE: could call MReset() at the end of the functions instead of calling Mfree() multiple times
@@ -631,6 +783,23 @@ void RelayPulse(OSCMessage *_mes){
       case 1:
         topulse = D1;
         break;
+          
+      case 2:
+        topulse = D2;
+        break;
+      
+      case 3:
+        topulse = D3;
+        break;
+      
+      case 4:
+        topulse = D4;
+        break;
+      
+      case 5:
+        topulse = D5;
+        break;
+      
       default:
         topulse = D0;
         break;
@@ -687,6 +856,23 @@ void RelayPulse(OSCMessage *_mes){
       case 1:
         topulse = D1;
         break;
+          
+      case 2:
+        topulse = D2;
+        break;
+      
+      case 3:
+        topulse = D3;
+        break;
+      
+      case 4:
+        topulse = D4;
+        break;
+      
+      case 5:
+        topulse = D5;
+        break;
+      
       default:
         topulse = D0;
         break;
@@ -755,6 +941,7 @@ void RelayPulse(OSCMessage *_mes){
 }
 
 
+// *************************************************************************************
 // IR - RECORD *************************************************************************
 
 // Record the IR command
@@ -767,7 +954,7 @@ void IRRecord(OSCMessage *_mes){
     Serial.println("No SD");
     //blink Yellow
     BlinkEnable(pinLEDRed, 100);
-    delay(2000); // wait a bit
+    RCdelay(2000); // wait a bit
     BlinkStop();
     return;
   }
@@ -865,7 +1052,7 @@ void IRSend(OSCMessage *_mes){
     Serial.println("No SD");
     //blink Yellow
     BlinkEnable(pinLEDRed, 100);
-    delay(2000); // wait a bit
+    RCdelay(2000); // wait a bit
     BlinkStop();
     return;
   }
@@ -880,10 +1067,17 @@ void IRSend(OSCMessage *_mes){
   
   
   //check for valid name
-  if(!BuildFileName(_mes)){
-    Serial.println("Invalid file name!");
-    gotoend = true;
+  char *fname = NULL;
+  if(StrParserQty(_mes->getOSCAddress(), '/') >= 4){
+    fname = StrParser(_mes->getOSCAddress(), '/', 4); //get the name
   }
+  if(fname != NULL){
+    if(!BuildFileName(&IRfolder, fname)){ //_mes
+      Serial.println("Invalid file name!");
+      gotoend = true;
+    }
+  }
+  Mfree(fname); //free the string allocated by StrParser()
   
   if(!gotoend){ //gotoend 1
     if(SaveIR){ // ---------------------------------------- Save to SD
@@ -970,7 +1164,7 @@ void IRSend(OSCMessage *_mes){
 }
 
 
-
+// *************************************************************************************
 // TEST ********************************************************************************
 
 // Test function to check OSC
@@ -1001,7 +1195,7 @@ void TEST(OSCMessage *_mes){
   } else {
     //blink Blue LED
     BlinkEnable(pinLEDBlue, 100);
-    delay(2000); // wait a bit
+    RCdelay(2000); // wait a bit
     BlinkStop();
   }
   
@@ -1013,6 +1207,33 @@ void TEST(OSCMessage *_mes){
   client.send(&resMes);
   
   digitalWrite(pinTest, LOW); //turn off
+}
+
+
+// *************************************************************************************
+// RFID - ADD **************************************************************************
+
+// Test function to check OSC
+void RFIDAdd(OSCMessage *_mes){
+   // "/RoboCore/rfig/add/<relay_number>"
+   // "/RoboCore/rfig/add/<relay_number>/<serial_number>/"
+   
+   // add the <relay_number> to AccessControlData
+   // add the <serial_number> to AccessControlData
+   // change the state of AccessControlData to 1
+}
+
+// RFID - REMOVE ***********************************************************************
+
+// Test function to check OSC
+void RFIDRemove(OSCMessage *_mes){
+   // "/RoboCore/rfig/remove/all"
+   // "/RoboCore/rfig/remove/<relay_number>"
+   // "/RoboCore/rfig/remove/<relay_number>/<serial_number>/"
+   
+   // add the <relay_number> to AccessControlData
+   // add the <serial_number> to AccessControlData
+   // change the state of AccessControlData to 10 or 11
 }
 
 
@@ -1086,33 +1307,6 @@ void EnableSD(void){
   digitalWrite(SSpin_SD, LOW);
 }
 
-// BUILD FILE NAME ********************************************************************* MODIFY
-
-// Build file name for SD
-boolean BuildFileName(OSCMessage *_mes){
-  boolean res = false;
-  
-  if(StrParserQty(_mes->getOSCAddress(), '/') >= 4){
-    char* fname = StrParser(_mes->getOSCAddress(), '/', 4); //get the name
-    int length = StrLength(fname);
-    
-    if((length > 0) && (length < (FILE_NAME_SIZE - STR_SIZE_FOLDER - STR_SIZE_EXTENSION - 1))){
-      //insert the name into the buffer and add the extension
-      file_name[STR_SIZE_FOLDER + length + STR_SIZE_EXTENSION] = '\0'; //NULL terminated string
-      for(int i=0 ; i < length ; i++)
-        file_name[i + STR_SIZE_FOLDER] = fname[i];
-      for(int i=0 ; i < STR_SIZE_EXTENSION ; i++)
-        file_name[i + STR_SIZE_FOLDER + length] = kextension[i];
-      
-      res = true;
-    }
-    Mfree(fname); //free the string allocated by StrParser()
-  }
-  
-  return res;
-}
-
-
 // TIMER 1 *****************************************************************************
 
 //Timer1 Overflow
@@ -1156,26 +1350,24 @@ void BlinkStop(){
 //**************************************************************************************
 //**************************************************************************************
 
-//// Read incoming data from serial until End Of Line character
-//int ReadFromSerial(char eol){
-//  int count = 0;
-//  char c = eol - 1;
-//  while(c != eol){
-//    if(Serial.available()){
-//      c = Serial.read();
-//      buffer[count] = c;
-//      count++;
-//    }
-//  }
-//
-//  return (count - 1); //because eol is included
-//}
-
-//int length = ReadFromSerial(EOL_CHAR);
-//char file_name[length + 1];
-//file_name[length] = '\0';
-//for(byte i=0 ; i < length ; i++)
-//file_name[i] = buffer[i];
+byte SendATWR(char **receiver){
+  //begin transmission
+  ByteArray barray;
+  InitializeByteArray(&barray);
+  //--- create message
+  XBeeMessages::CreateRemoteATRequest(&barray, *receiver, "0000", USE_64_BIT_ADDRESS, WR, NULL);
+  //--- end of creation
+  XBee.CreateFrame(&barray); //already free Byte Array
+  XBee.Send();
+  RCdelay(100); //insert a pause because WR command takes some time to answer
+  char* str = NULL;
+  byte res = XBee.Listen(&str, false);
+  
+  res = XBeeMessages::ResponseOK(API_REMOTE_AT_COMMAND_REQUEST, str);
+  Mfree(str); //free the string allocated by Listen()
+  
+  return res;
+}
 
 //**************************************************************************************
 
