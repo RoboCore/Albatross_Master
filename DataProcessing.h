@@ -40,8 +40,8 @@ void DataProcessing(char *address_64bit, ByteArray *data){
 
 #ifdef AS_DP_RECEIVED_TEST
   Serial.println("\n>> Received Test");
-  Serial.println(address_64bit); //TESTE
-  DisplayByteArray(&Serial, data, true); //TESTE
+  Serial.println(address_64bit);
+  DisplayByteArray(&Serial, data, true);
 #endif
   
   //--- change from here ---

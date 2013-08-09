@@ -58,7 +58,6 @@ byte ConfigureSlavePins(XBeeMaster *xbee, word slave_type){
       pins[1].pin = D1;
       pins[1].value = XBEE_PIN_DO_LOW;
       num_pins = 2; //update
-Serial.println("HERE"); //TESTE
       break;
 #endif
 
@@ -78,7 +77,6 @@ Serial.println("HERE"); //TESTE
   //configure the pins
   res += xbee->ConfigurePins(pins, num_pins);
   
-Serial.println(res); //TESTE
   return res;
 }
 

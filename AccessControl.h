@@ -93,8 +93,8 @@ byte AccessControl(char *address_64bit, ByteArray *data){
 
 #ifdef AS_AC_RECEIVED_TEST
   Serial.println("\n>> Received Test");
-  Serial.println(address_64bit); //TESTE
-  DisplayByteArray(&Serial, data, true); //TESTE
+  Serial.println(address_64bit);
+  DisplayByteArray(&Serial, data, true);
 #endif
 
   //NOTE: the ID in data might have non-printable characters

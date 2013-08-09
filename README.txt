@@ -3,7 +3,7 @@
 ******************************************************
 
 	RoboCore Albatross Master
-		(v1.0 - 30/07/2013)
+		(v1.0 - 09/08/2013)
 
   Program to use with the Albatross Master Shield from RoboCore
     (for Arduino 1.0.1 and later)
@@ -11,18 +11,20 @@
   Copyright 2013 RoboCore (François) ( http://www.RoboCore.net )
   
   ------------------------------------------------------------------------------
-  This program is free software: you can redistribute it and/or modify
+  This file is part of Albatross Master.
+
+  Albatross Master is free software: you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  This program is distributed in the hope that it will be useful,
+  Albatross Master is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU Lesser General Public License for more details.
 
   You should have received a copy of the GNU Lesser General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  along with Albatross Master.  If not, see <http://www.gnu.org/licenses/>.
   ------------------------------------------------------------------------------
   
   This program is supports (master version + slaves versions):
@@ -35,7 +37,7 @@
     - pulse an IO port in a Albatross Slave Relay;
     - configure a Albatross as Master or Slave XBee;
     - record an IR command;
-    - send an IR command;
+    - send an IR command (optionally repeat the command);
     - perform a test;
   The Serial is used to display the status of the program but IS NOT necessary for the
     program to run. One can also use the Serial to execute special commands:
@@ -45,14 +47,19 @@
                   >> configure the XBee as slave (presumed the correct baudrate was
                       already set);
     - restore >> restore the XBee's parameter to their factory settings;
-    - version >> return the version of the current program.
-  
-  
-  MUST CONFIGURE variables (before uploading to the Arduino), according to the user's network:
-    - myMac[];
-    - myIp[];
-    - serverPort;
-    - clientPort.
+    - version >> display the version of the current program;
+    - ipconfig >> display the local network configuration;
+    - xconfig >> display the XBee network configuration;
+    - ip=<ip> >> set the IP of the Albatross Master in the local network;
+    - mac=<mac> >> set the MAC of the Albatross Master in the local network;
+    - server_port=<server port> >> set the Server Port of the Albatross Master in the local network;
+    - client_port=<client port> >> set the Client Port of the Albatroos Master in the local network;
+    - id=<id> >> set the XBee network ID;
+    - channel=<channel> >> set the XBee network Channel.
+    
+    NOTE: # after changing ANY of the local network configurations, the Albatross Master must be
+            manually RESET to apply the changes;
+          # the XBee network ID and Channel must be set BEFORE configuring ANY XBeedevice.
 
 
 
@@ -110,12 +117,13 @@ changes in the libraries (only to compile the module's code):
 - <SPI.h>		(comes with Arduino 1.0.1)
 - <SD.h>		(comes with Arduino 1.0.1)
 - <Ethernet.h>		(comes with Arduino 1.0.1)
+- <EEPROM.h>		(comes with Arduino 1.0.1)
 - <ArdOSC.h>		RoboCore version v1.0 (modified from Recotana's)
 - <IRremote.h> *	Ken Shirriff (https://github.com/shirriff/Arduino-IRremote)
 - <Memory.h>		RoboCore - v1.3
 - <String_Functions.h>	RoboCore - v1.3
 - <Hex_Strings.h>	RoboCore - v1.2
-- <XBee_API.h>		RoboCore - v1.2
+- <XBee_API.h>		RoboCore - v1.4
 
 	* small modifications to use with XBee Master module (not enough to
 		create a different library)
@@ -168,4 +176,10 @@ changes in the libraries (only to compile the module's code):
 		> RECORD can only be used in one way because the XBee Master must be used
 		with the Ethernet Shield, leavind only the 
 	- SEND can only be used in one
+
+
+******************************************************************************************
+
+
+
 
